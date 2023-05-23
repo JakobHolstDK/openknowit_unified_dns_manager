@@ -27,7 +27,7 @@ client = MongoClient(MONGO)
 db = client['dns_db']
 collection = db['dns_entries']
 
-def add_dns_entry(hostname, ip):
+def add_the_dns_entry(hostname, ip):
     data = {
         "value": ip,
         "ttl": 86400,
@@ -41,7 +41,7 @@ def add_dns_entry(hostname, ip):
     else:
         return False
 
-def change_dns_entry(hostname, ip):
+def change_the_dns_entry(hostname, ip):
     record = next((rec for rec in records if rec["name"] == hostname), None)
     if record["value"] != ip:
         RECORDID = record["id"]
@@ -60,7 +60,7 @@ def change_dns_entry(hostname, ip):
     else:
         return True
     
-def delete_dns_entry(hostname):
+def delete_the_dns_entry(hostname):
     record = next((rec for rec in records if rec["name"] == hostname), None)
     RECORDID = record["id"]
     response = requests.delete(f"https://dns.hetzner.com/api/v1/records/{RECORDID}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN })
@@ -79,7 +79,7 @@ def get_dns_entries():
 def add_dns_entry():
     new_entry = request.json
     print(new_entry)
-    if add_dns_entry(new_entry['hostname'], new_entry['ip_address']):
+    if add_the_dns_entry(new_entry['hostname'], new_entry['ip_address']):
         collection.insert_one(new_entry)
         return jsonify({'message': 'DNS entry added successfully.'})
     else:
@@ -101,12 +101,12 @@ def update_dns_entry(hostname):
     result = collection.update_one({'hostname': hostname}, {'$set': updated_entry})
     if result.modified_count > 0:
         return jsonify({'message': 'DNS entry updated successfully.'})
-        if update_dns_entry(updated_entry['hostname'], updated_entry['ip']):
+        if update_the_dns_entry(updated_entry['hostname'], updated_entry['ip']):
             return jsonify({'message': 'DNS entry updated successfully.'})
         else:
             return jsonify({'message': 'DNS entry not updated.'}), 404
     else:
-        if add_dns_entry(updated_entry['hostname'], updated_entry['ip_address']):
+        if add_the_dns_entry(updated_entry['hostname'], updated_entry['ip_address']):
             return jsonify({'message': 'DNS entry added successfully.'})
         else:
             return jsonify({'message': 'DNS entry not added.'}), 404
