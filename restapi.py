@@ -1,4 +1,7 @@
 from flask import Flask, jsonify, request
+import requests
+import requests
+
 from pymongo import MongoClient
 import os
 
@@ -8,7 +11,7 @@ MONGO = os.getenv("MONGO")
 DNSTOKEN = os.getenv("DNSTOKEN")
 
 # Get ZONEID
-response = request.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
+response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
 zones = response.json()
 
 for zone in zones['zones']:
