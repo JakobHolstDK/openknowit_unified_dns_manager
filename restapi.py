@@ -8,7 +8,7 @@ MONGO = os.getenv("MONGO")
 DNSTOKEN = os.getenv("DNSTOKEN")
 
 # Get ZONEID
-response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
+response = request.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
 zones = response.json()
 
 for zone in zones['zones']:
@@ -21,7 +21,7 @@ db = client['dns_db']
 collection = db['dns_entries']
 for entry in collection.find():
     print(entry)
-    
+
 
 @app.route('/dns', methods=['GET'])
 def get_dns_entries():
