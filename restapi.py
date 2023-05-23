@@ -78,6 +78,7 @@ def get_dns_entries():
 @app.route('/dns', methods=['POST'])
 def add_dns_entry():
     new_entry = request.json
+    print(new_entry)
     if add_dns_entry(new_entry['hostname'], new_entry['ip']):
         collection.insert_one(new_entry)
         return jsonify({'message': 'DNS entry added successfully.'})
