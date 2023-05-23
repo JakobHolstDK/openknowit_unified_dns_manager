@@ -79,7 +79,7 @@ def get_dns_entries():
 def add_dns_entry():
     new_entry = request.json
     print(new_entry)
-    if add_dns_entry(new_entry['hostname'], new_entry['ip']):
+    if add_dns_entry(new_entry['hostname'], new_entry['ip_address']):
         collection.insert_one(new_entry)
         return jsonify({'message': 'DNS entry added successfully.'})
     else:
@@ -106,7 +106,7 @@ def update_dns_entry(hostname):
         else:
             return jsonify({'message': 'DNS entry not updated.'}), 404
     else:
-        if add_dns_entry(updated_entry['hostname'], updated_entry['ip']):
+        if add_dns_entry(updated_entry['hostname'], updated_entry['ip_address']):
             return jsonify({'message': 'DNS entry added successfully.'})
         else:
             return jsonify({'message': 'DNS entry not added.'}), 404
