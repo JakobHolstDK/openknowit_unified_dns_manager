@@ -6,8 +6,6 @@ from pymongo import MongoClient
 import os
 
 MONGO = os.getenv("MONGO")
-
-
 DNSTOKEN = os.getenv("DNSTOKEN")
 
 # Get ZONEID
@@ -18,13 +16,58 @@ for zone in zones['zones']:
     if zone['name'] == "openknowit.com": 
         ZONEID = zone['id']
 
+# Get records
+response = requests.get(f"https://dns.hetzner.com/api/v1/records?zone_id={ZONEID}", headers={"Auth-API-Token": DNSTOKEN })
+records = response.json()
+
+
+
 app = Flask(__name__)
 client = MongoClient(MONGO)
 db = client['dns_db']
 collection = db['dns_entries']
-for entry in collection.find():
-    print(entry)
 
+def add_dns_entry(hostname, ip):
+    data = {
+        "value": ip,
+        "ttl": 86400,
+        "type": "A",
+        "name": hostname,
+        "zone_id": ZONEID
+    }
+    response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
+    if response.status_code == 200:
+        return True
+    else:
+        return False
+
+def change_dns_entry(hostname, ip):
+    record = next((rec for rec in records if rec["name"] == hostname), None)
+    if record["value"] != ip:
+        RECORDID = record["id"]
+        data = {
+            "value": ip,
+            "ttl": 0,
+            "type": "A",
+            "name": hostname,
+            "zone_id": ZONEID
+        }
+        response = requests.put(f"https://dns.hetzner.com/api/v1/records/{RECORDID}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+    else:
+        return True
+    
+def delete_dns_entry(hostname):
+    record = next((rec for rec in records if rec["name"] == hostname), None)
+    RECORDID = record["id"]
+    response = requests.delete(f"https://dns.hetzner.com/api/v1/records/{RECORDID}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN })
+    if response.status_code == 200:
+        return True
+    else:
+        return False
 
 @app.route('/dns', methods=['GET'])
 def get_dns_entries():
@@ -35,8 +78,11 @@ def get_dns_entries():
 @app.route('/dns', methods=['POST'])
 def add_dns_entry():
     new_entry = request.json
-    collection.insert_one(new_entry)
-    return jsonify({'message': 'DNS entry added successfully.'})
+    if add_dns_entry(new_entry['hostname'], new_entry['ip']):
+        collection.insert_one(new_entry)
+        return jsonify({'message': 'DNS entry added successfully.'})
+    else:
+        return jsonify({'message': 'DNS entry not added.'}), 404
 
 
 @app.route('/dns/<hostname>', methods=['GET'])
@@ -54,8 +100,16 @@ def update_dns_entry(hostname):
     result = collection.update_one({'hostname': hostname}, {'$set': updated_entry})
     if result.modified_count > 0:
         return jsonify({'message': 'DNS entry updated successfully.'})
+        if update_dns_entry(updated_entry['hostname'], updated_entry['ip']):
+            return jsonify({'message': 'DNS entry updated successfully.'})
+        else:
+            return jsonify({'message': 'DNS entry not updated.'}), 404
     else:
-        return jsonify({'message': 'DNS entry not found.'}), 404
+        if add_dns_entry(updated_entry['hostname'], updated_entry['ip']):
+            return jsonify({'message': 'DNS entry added successfully.'})
+        else:
+            return jsonify({'message': 'DNS entry not added.'}), 404
+
 
 
 @app.route('/dns/<hostname>', methods=['DELETE'])
