@@ -137,6 +137,13 @@ def delete_the_dns_entry(hostname):
     else:
         return False
 
+
+record = get_dns_entry("test")
+print(record)
+
+
+
+
 @app.route('/dns', methods=['GET'])
 def get_dns_entries():
     dns_entries = list(collection.find({}, {'_id': 0}))
