@@ -6,20 +6,31 @@ import datetime
 from pymongo import MongoClient
 import os
 
+
+
 MONGO = os.getenv("MONGO")
 DNSTOKEN = os.getenv("DNSTOKEN")
+DOMAIN = os.getenv("DOMAIN")
+
 
 # Get ZONEID
-response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
-zones = response.json()
-
-for zone in zones['zones']:
-    if zone['name'] == "openknowit.com": 
-        ZONEID = zone['id']
+def get_zoneid(domain):
+  response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
+  zones = response.json()
+  for zone in zones['zones']:
+    if zone['name'] == domain: 
+      return zone['id']
+    
+def get_records(domain):
+  ZONEID = get_zoneid(domain)
+  response = requests.get(f"https://dns.hetzner.com/api/v1/records?zone_id={ZONEID}", headers={"Auth-API-Token": DNSTOKEN })
+  records = response.json()
+  return records
 
 # Get records
-response = requests.get(f"https://dns.hetzner.com/api/v1/records?zone_id={ZONEID}", headers={"Auth-API-Token": DNSTOKEN })
-records = response.json()
+zoneid = get_zoneid(DOMAIN)
+records = get_records(DOMAIN)
+
 
 
 
@@ -29,57 +40,69 @@ db = client['dns_db']
 collection = db['dns_entries']
 
 def get_domain_id(domain):
-  response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": os.getenv('DNSTOKEN') })
+  response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
   zones = response.json()
   for zone in zones['zones']:
     if zone['name'] == domain: 
       return zone['id']
     
-def create_the_dns_entry(hostname, ip):
+def create_the_dns_entry(hostname, zoneid, ip):
   print("We need an A record")
   data = {
      "value": ip,
      "ttl": 86400,
      "type": "A",
-     "name": DOM,
+     "name": hostname,
      "zone_id": ZONEID
     }
-  response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": os.getenv('DNSTOKEN') }, json=data)
+  response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
   if response.status_code == 200:
     print(f"{datetime.now()}: A record created successfully")
   else:
     print(f"{datetime.now()}: Failed to create A record. Status code: {response.status_code}")
-  else:
-    if record["value"] != IP:
-      RECORDID = record["id"]
-      print(f"{datetime.now()}: We need to change the IP address on {RECORDID}")
+
+def get_the_dns_entry(hostname):
+    record = next((rec for rec in records if rec["name"] == hostname), None)
+    return record
+
+def update_the_dns_entry(hostname, ip):   
+  record_id = get_the_dns_entry(hostname)['id']
+  record_ip = get_the_dns_entry(hostname)['value']
+  if record_ip != ip:
       data = {
-        "value": IP,
-        "ttl": 0,
-        "type": "A",
-        "name": DOM,
-        "zone_id": ZONEID
-        }
-      response = requests.put(f"https://dns.hetzner.com/api/v1/records/{RECORDID}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
+       "value": ip,
+       "ttl": 0,
+       "type": "A",
+       "name": hostname,
+       "zone_id": zoneid
+     }
+      response = requests.put(f"https://dns.hetzner.com/api/v1/records/{record_id}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
       if response.status_code == 200:
-        print(f"IP address updated successfully for {RECORDID}")
+        print(f"IP address updated successfully for {record_id}")
+        return True
       else:
         print(f"Failed to update IP address. Status code: {response.status_code}")
+        return False
+      
 
 
 def add_the_dns_entry(hostname, ip):
-    data = {
-        "value": ip,
-        "ttl": 86400,
-        "type": "A",
-        "name": hostname,
-        "zone_id": ZONEID
-    }
-    response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
-    if response.status_code == 200:
-        return True
+    if not get_the_dns_entry(hostname):
+        print("We need an A record")
+        data = {
+          "value": ip,
+          "ttl": 86400,
+          "type": "A",
+          "name": hostname,
+          "zone_id": zoneid
+        }
+        response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
+        if response.status_code == 200:
+          return True
+        else:
+          return False
     else:
-        return False
+       update_dns_entry(hostname, ip)
 
 def change_the_dns_entry(hostname, ip):
     record = next((rec for rec in records if rec["name"] == hostname), None)
