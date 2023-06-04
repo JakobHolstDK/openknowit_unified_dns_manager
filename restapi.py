@@ -101,7 +101,9 @@ def add_the_dns_entry(hostname, ip):
           "name": hostname,
           "zone_id": zoneid
         }
+        print(data)
         response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
+        print(response.status_code)
         if response.status_code == 200:
           return True
         else:
