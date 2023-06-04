@@ -1,206 +1,69 @@
-from flask import Flask, jsonify, request
-import requests
-import datetime
-
-
+from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import os
+import requests
 
 
+app = Flask(__name__)
 
-MONGO = os.getenv("MONGO")
 DNSTOKEN = os.getenv("DNSTOKEN")
 DOMAIN = os.getenv("DOMAIN")
 
+mongo_port = 27017
+mongo_database = 'dns_records'
+mongo_host = os.getenv("MONGO")
+mongo_port = 27017
+mongo_database = 'dns_records'
 
-# Get ZONEID
+# MongoDB client
+client = MongoClient(mongo_host, mongo_port)
+db = client[mongo_database]
+collection = db['records']
+
 def get_zoneid(domain):
   response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
   zones = response.json()
   for zone in zones['zones']:
-    if zone['name'] == domain: 
-      return zone['id']
+    if zone['name'] == domain:   
+        ZONEID = zone['id']
+        return ZONEID
     
+
 def get_records(domain):
   ZONEID = get_zoneid(domain)
   response = requests.get(f"https://dns.hetzner.com/api/v1/records?zone_id={ZONEID}", headers={"Auth-API-Token": DNSTOKEN })
   records = response.json()
   return records
 
-# Get records
-zoneid = get_zoneid(DOMAIN)
-records = get_records(DOMAIN)
+def get_record(domain, hostname, ip):
+  ZONEID = get_zoneid(domain)
+  response = requests.get(f"https://dns.hetzner.com/api/v1/records?zone_id={ZONEID},ip={ip} ", headers={"Auth-API-Token": DNSTOKEN })
+  records = response.json()
+  return records
 
+def get_record(domain, hostname):
+  records = get_records(domain)
+  record = next((rec for rec in records if rec["name"] == hostname), None)
+  return record
 
-
-
-app = Flask(__name__)
-client = MongoClient(MONGO)
-db = client['dns_db']
-collection = db['dns_entries']
-
-def get_domain_id(domain):
-  response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": DNSTOKEN })
-  zones = response.json()
-  for zone in zones['zones']:
-    if zone['name'] == domain: 
-      return zone['id']
-    
-def create_the_dns_entry(hostname, zoneid, ip):
-  print("We need an A record")
-  data = {
-     "value": ip,
-     "ttl": 86400,
-     "type": "A",
-     "name": hostname,
-     "zone_id": ZONEID
-    }
-  response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
-  if response.status_code == 200:
-    print(f"{datetime.now()}: A record created successfully")
-  else:
-    print(f"{datetime.now()}: Failed to create A record. Status code: {response.status_code}")
-
-def get_the_dns_entry(hostname):
-    records = get_records(DOMAIN)
-    for entry in records['records']:
-        if entry['name'] == hostname:
-            return entry
-    return None
-
-
-
-def update_the_dns_entry(hostname, ip):   
-  record_id = get_the_dns_entry(hostname)['id']
-  record_ip = get_the_dns_entry(hostname)['value']
-  if record_ip != ip:
-      data = {
-       "value": ip,
-       "ttl": 0,
-       "type": "A",
-       "name": hostname,
-       "zone_id": zoneid
-     }
-      response = requests.put(f"https://dns.hetzner.com/api/v1/records/{record_id}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
-      if response.status_code == 200:
-        print(f"IP address updated successfully for {record_id}")
-        return True
-      else:
-        print(f"Failed to update IP address. Status code: {response.status_code}")
-        return False
-      
-
-
-def add_the_dns_entry(hostname, ip):
-    if not get_the_dns_entry(hostname):
-        print("We need an A record")
-        data = {
-          "value": ip,
-          "ttl": 86400,
-          "type": "A",
-          "name": hostname,
-          "zone_id": zoneid
-        }
-        print(data)
-        response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
-        print(response.status_code)
-        if response.status_code == 200:
-          return True
-        else:
-          return False
-    else:
-       update_dns_entry(hostname, ip)
-
-def change_the_dns_entry(hostname, ip):
-    record = next((rec for rec in records if rec["name"] == hostname), None)
-    if record["value"] != ip:
-        RECORDID = record["id"]
-        data = {
-            "value": ip,
-            "ttl": 0,
-            "type": "A",
-            "name": hostname,
-            "zone_id": ZONEID
-        }
-        response = requests.put(f"https://dns.hetzner.com/api/v1/records/{RECORDID}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
-        if response.status_code == 200:
-            return True
-        else:
-            return False
-    else:
-        return True
-    
-def delete_the_dns_entry(hostname):
-    record = next((rec for rec in records if rec["name"] == hostname), None)
-    RECORDID = record["id"]
-    response = requests.delete(f"https://dns.hetzner.com/api/v1/records/{RECORDID}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN })
-    if response.status_code == 200:
-        return True
-    else:
-        return False
-
-
-record = get_the_dns_entry("test")
-add_the_dns_entry("test", "127.0.0.1")
-record = get_the_dns_entry("test")
-print(record)
-
-
-
-
-@app.route('/dns', methods=['GET'])
-def get_dns_entries():
-    dns_entries = list(collection.find({}, {'_id': 0}))
-    return jsonify(dns_entries)
-
-
+# API endpoint to update DNS records
 @app.route('/dns', methods=['POST'])
-def add_dns_entry():
-    new_entry = request.json
-    print(new_entry)
-    if add_the_dns_entry(new_entry['hostname'], new_entry['ip_address']):
-        collection.insert_one(new_entry)
-        return jsonify({'message': 'DNS entry added successfully.'})
-    else:
-        return jsonify({'message': 'DNS entry not added.'}), 404
+def update_dns():
+    
+    zoneid = get_zoneid(DOMAIN)
+    records = get_records(DOMAIN)
+    for record in records['zones ']:
+      print(record)
 
-
-@app.route('/dns/<hostname>', methods=['GET'])
-def get_dns_entry(hostname):
-    dns_entry = collection.find_one({'hostname': hostname}, {'_id': 0})
-    if dns_entry:
-        return jsonify(dns_entry)
-    else:
-        return jsonify({'message': 'DNS entry not found.'}), 404
-
-
-@app.route('/dns/<hostname>', methods=['PUT'])
-def update_dns_entry(hostname, ip):
-    updated_entry = request.json
-    result = collection.update_one({'hostname': hostname}, {'$set': updated_entry})
-    if result.modified_count > 0:
-        return jsonify({'message': 'DNS entry updated successfully.'})
-        if update_the_dns_entry(updated_entry['hostname'], updated_entry['ip']):
-            return jsonify({'message': 'DNS entry updated successfully.'})
-        else:
-            return jsonify({'message': 'DNS entry not updated.'}), 404
-    else:
-        if add_the_dns_entry(updated_entry['hostname'], updated_entry['ip_address']):
-            return jsonify({'message': 'DNS entry added successfully.'})
-        else:
-            return jsonify({'message': 'DNS entry not added.'}), 404
-
-
-
-@app.route('/dns/<hostname>', methods=['DELETE'])
-def delete_dns_entry(hostname):
-    result = collection.delete_one({'hostname': hostname})
-    if result.deleted_count > 0:
-        return jsonify({'message': 'DNS entry deleted successfully.'})
-    else:
-        return jsonify({'message': 'DNS entry not found.'}), 404
-
+    try:
+      dns_record = request.json
+      domain = dns_record.get('name')
+      ip = dns_record.get('ip')
+      collection.update_one({'domain': domain}, {'$set': {'ip': ip}}, upsert=True)
+      return jsonify({'message': 'DNS record updated successfully.'}), 200
+    except Exception as e:
+       print(str(e))
+       return jsonify({'message': 'Failed to update DNS record.'}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5002)
-
+    app.run(port=3000)
