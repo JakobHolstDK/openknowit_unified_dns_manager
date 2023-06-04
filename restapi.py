@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 import requests
-import requests
+import datetime
+
 
 from pymongo import MongoClient
 import os
@@ -26,6 +27,45 @@ app = Flask(__name__)
 client = MongoClient(MONGO)
 db = client['dns_db']
 collection = db['dns_entries']
+
+def get_domain_id(domain):
+  response = requests.get("https://dns.hetzner.com/api/v1/zones", headers={"Auth-API-Token": os.getenv('DNSTOKEN') })
+  zones = response.json()
+  for zone in zones['zones']:
+    if zone['name'] == domain: 
+      return zone['id']
+    
+def create_the_dns_entry(hostname, ip):
+  print("We need an A record")
+  data = {
+     "value": ip,
+     "ttl": 86400,
+     "type": "A",
+     "name": DOM,
+     "zone_id": ZONEID
+    }
+  response = requests.post("https://dns.hetzner.com/api/v1/records", headers={"Content-Type": "application/json", "Auth-API-Token": os.getenv('DNSTOKEN') }, json=data)
+  if response.status_code == 200:
+    print(f"{datetime.now()}: A record created successfully")
+  else:
+    print(f"{datetime.now()}: Failed to create A record. Status code: {response.status_code}")
+  else:
+    if record["value"] != IP:
+      RECORDID = record["id"]
+      print(f"{datetime.now()}: We need to change the IP address on {RECORDID}")
+      data = {
+        "value": IP,
+        "ttl": 0,
+        "type": "A",
+        "name": DOM,
+        "zone_id": ZONEID
+        }
+      response = requests.put(f"https://dns.hetzner.com/api/v1/records/{RECORDID}", headers={"Content-Type": "application/json", "Auth-API-Token": DNSTOKEN }, json=data)
+      if response.status_code == 200:
+        print(f"IP address updated successfully for {RECORDID}")
+      else:
+        print(f"Failed to update IP address. Status code: {response.status_code}")
+
 
 def add_the_dns_entry(hostname, ip):
     data = {
