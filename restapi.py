@@ -175,7 +175,7 @@ def get_dns_entry(hostname):
 
 
 @app.route('/dns/<hostname>', methods=['PUT'])
-def update_dns_entry(hostname):
+def update_dns_entry(hostname, ip):
     updated_entry = request.json
     result = collection.update_one({'hostname': hostname}, {'$set': updated_entry})
     if result.modified_count > 0:
