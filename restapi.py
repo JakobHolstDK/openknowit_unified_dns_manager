@@ -62,8 +62,13 @@ def create_the_dns_entry(hostname, zoneid, ip):
     print(f"{datetime.now()}: Failed to create A record. Status code: {response.status_code}")
 
 def get_the_dns_entry(hostname):
-    record = next((rec for rec in records if rec["name"] == hostname), None)
-    return record
+    records = get_records(DOMAIN)
+    for entry in records['records']:
+        if entry['name'] == hostname:
+            return entry
+    return None
+
+
 
 def update_the_dns_entry(hostname, ip):   
   record_id = get_the_dns_entry(hostname)['id']
