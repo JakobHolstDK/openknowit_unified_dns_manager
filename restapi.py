@@ -139,6 +139,8 @@ def delete_the_dns_entry(hostname):
 
 
 record = get_the_dns_entry("test")
+add_the_dns_entry("test", "127.0.0.1")
+record = get_the_dns_entry("test")
 print(record)
 
 
