@@ -66,4 +66,5 @@ def update_dns():
        return jsonify({'message': 'Failed to update DNS record.'}), 500
 
 if __name__ == '__main__':
-    app.run(port=5002)
+    app.run(host='0.0.0.0', port=5002)
+
