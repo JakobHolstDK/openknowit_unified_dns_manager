@@ -58,6 +58,17 @@ if __name__ == '__main__':
     for record in records['records']:
         if record['type'] == 'A':
             print(record['id'])
+            print(record['name'])
+            print(record['value'])
+            print(record['ttl'])
+            print(record['type'])
+            print(record['zone_id'])
+            print(record['created'])
+            print(record['modified'])
+            print(record['zone_name'])
+            print(record['proxied'])
+            print(record['proxiable'])
+            
     exit(0)
 
 
