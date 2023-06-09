@@ -12,8 +12,6 @@ from flask_mail import Mail, Message
 from flask_bcrypt import Bcrypt
 from flask_socketio import SocketIO, emit
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
-from werkzeug.utils import secure_filename
 
 
 
