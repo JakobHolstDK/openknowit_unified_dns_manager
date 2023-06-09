@@ -46,7 +46,19 @@ def get_record(domain, hostname):
   record = next((rec for rec in records if rec["name"] == hostname), None)
   return record
 
-
+# API endpoint to flush DNS records
+@app.route('/dns/flush', methods=['GET'])
+def flush_dns():
+    try:
+      records = get_records(DOMAIN)
+      for record in records['records']:
+        if record['type'] == 'A':
+          response = requests.delete(f"https://dns.hetzner.com/api/v1/records/{record['id']}", headers={"Auth-API-Token": DNSTOKEN })
+      return jsonify({'message': 'DNS records flushed successfully.'}), 200
+    except Exception as e:
+       print(str(e))
+       return jsonify({'message': 'Failed to flush DNS records.'}), 500
+    
 # APi endpoint to list all DNS records
 @app.route('/dns', methods=['GET'])
 def list_dns():
