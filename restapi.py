@@ -46,6 +46,27 @@ def get_record(domain, hostname):
   record = next((rec for rec in records if rec["name"] == hostname), None)
   return record
 
+
+# APi endpoint to list all DNS records
+@app.route('/dns', methods=['GET'])
+def list_dns():
+    try:
+      records = get_records(DOMAIN)
+      return jsonify(records), 200
+    except Exception as e:
+       print(str(e))
+       return jsonify({'message': 'Failed to list DNS records.'}), 500
+    
+# API endpoint to get DNS record
+@app.route('/dns/<hostname>', methods=['GET'])
+def get_dns(hostname):
+    try:
+      record = get_record(DOMAIN, hostname)
+      return jsonify(record), 200
+    except Exception as e:
+       print(str(e))
+       return jsonify({'message': 'Failed to get DNS record.'}), 500
+    
 # API endpoint to update DNS records
 @app.route('/dns', methods=['POST'])
 def update_dns():
