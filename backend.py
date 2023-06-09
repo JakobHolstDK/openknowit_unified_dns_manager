@@ -55,6 +55,9 @@ def get_records(domain):
 if __name__ == '__main__':
     records = get_records(DOMAIN)
     print(records)
+    for record in records['records']:
+        if record['type'] == 'A':
+            print(record['id'])
     exit(0)
 
 
