@@ -78,6 +78,9 @@ def get_dns(hostname):
     except Exception as e:
        print(str(e))
        return jsonify({'message': 'Failed to get DNS record.'}), 500
+    
+
+    
 # API endpoint to create DNS record
 @app.route('/dns', methods=['PUT'])
 def create_dns():
