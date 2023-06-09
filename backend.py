@@ -53,10 +53,10 @@ def get_records(domain):
     return records
 
 if __name__ == '__main__':
-    records = get_recordis(DOMAIN)
+    records = get_records(DOMAIN)
     print(records)
     exit(0)
 
-    
+
 
 
